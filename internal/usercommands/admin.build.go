@@ -75,23 +75,31 @@ func Build(rest string, user *users.UserRecord, room *rooms.Room, flags events.E
 				return true, err
 			}
 
-			if gotoRoomId, _ := rMapper.FindAdjacentRoom(user.Character.RoomId, exitName, 1); gotoRoomId == 0 {
+			gotoRoomId, _ := rMapper.FindAdjacentRoom(user.Character.RoomId, exitName, 1)
 
-				if newRoom, err := rooms.BuildRoom(user.Character.RoomId, exitName, mapDirection); err != nil {
+			if gotoRoomId == 0 {
+
+				newRoom, err := rooms.BuildRoom(user.Character.RoomId, exitName, mapDirection)
+
+				// If there was a problem building the room, send the error to the user before returning
+				if err != nil {
 					user.SendText(err.Error())
-				} else {
-					destinationRoom = newRoom
-				}
-
-				if destinationRoom == nil {
 					user.SendText(fmt.Sprintf("Error building room %s.", exitName))
 					return false, nil
 				}
 
+				destinationRoom = newRoom
+
+			} else {
+				destinationRoom = rooms.LoadRoom(gotoRoomId)
+				if _, ok := destinationRoom.Exits[exitName]; !ok {
+					rooms.ConnectRoom(user.Character.RoomId, destinationRoom.RoomId, exitName, mapDirection)
+				}
 			}
 
 			// Connect the exit back
 			if len(returnName) > 0 {
+
 				returnMapDirection := returnName
 				if strings.Contains(returnName, `-`) {
 					returnMapDirection = returnName
