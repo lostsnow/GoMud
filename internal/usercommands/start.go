@@ -233,46 +233,29 @@ func Start(rest string, user *users.UserRecord, room *rooms.Room, flags events.E
 
 	user.ClearPrompt()
 
-	for _, ridStr := range configs.GetSpecialRoomsConfig().TutorialStartRooms {
+	tutorialRoomIds := []int{}
+	startRoom := 0
+	for i, roomIdStr := range configs.GetSpecialRoomsConfig().TutorialRooms {
+		roomId, _ := strconv.ParseInt(roomIdStr, 10, 64)
+		tutorialRoomIds = append(tutorialRoomIds, int(roomId))
 
-		rid, _ := strconv.ParseInt(ridStr, 10, 64)
-		skip := false
-
-		for _, populatedRoomId := range rooms.GetRoomsWithPlayers() {
-
-			for i := 0; i < 10; i++ {
-
-				if int(rid)+i == populatedRoomId {
-					skip = true
-					break
-				}
-
-			}
-
-			if skip {
-				break
-			}
-
+		if i == 0 {
+			startRoom = int(roomId)
 		}
-
-		if skip {
-			continue
-		}
-
-		scripting.TryRoomScriptEvent(`onEnter`, user.UserId, int(rid))
-
-		user.SendText(fmt.Sprintf(`<ansi fg="magenta">Suddenly, a vortex appears before you, drawing you in before you have any chance to react!</ansi>%s`, term.CRLFStr))
-
-		rooms.MoveToRoom(user.UserId, int(rid))
-
-		return true, nil
-
 	}
 
-	user.SendText(`Someone else is currently utilizing the tutorial, please try again in a few minutes.`)
+	createdRoomIds, err := rooms.CreateEphemeralRoomIds(tutorialRoomIds...)
+	if err != nil {
+		user.SendText(`The Tutorial zone is fully occupied right now. Please try again in a few minutes`)
+		return true, nil
+	}
 
-	//rooms.MoveToRoom(user.UserId, 1)
-	//user.SendText(`Welcome to Frostfang. You can <ansi fg="command">look</ansi> at the <ansi fg="itemname">sign</ansi> here!`)
+	ephemeralStartRoomId := createdRoomIds[startRoom]
+	scripting.TryRoomScriptEvent(`onEnter`, user.UserId, ephemeralStartRoomId)
+
+	user.SendText(fmt.Sprintf(`<ansi fg="magenta">Suddenly, a vortex appears before you, drawing you in before you have any chance to react!</ansi>%s`, term.CRLFStr))
+
+	rooms.MoveToRoom(user.UserId, ephemeralStartRoomId)
 
 	return true, nil
 }

@@ -25,6 +25,8 @@ import (
 func setRoomFunctions(vm *goja.Runtime) {
 	vm.Set(`GetRoom`, GetRoom)
 	vm.Set(`GetMap`, GetMap)
+	vm.Set(`CreateInstancesFromRoomIds`, CreateInstancesFromRoomIds)
+	vm.Set(`CreateInstancesFromZone`, CreateInstancesFromZone)
 }
 
 type ScriptRoom struct {
@@ -307,6 +309,16 @@ func (r ScriptRoom) RemoveMutator(mutName string) {
 // # These functions get exported to the scripting engine
 //
 // ////////////////////////////////////////////////////////
+func CreateInstancesFromRoomIds(roomList []int) map[int]int {
+	ret, _ := rooms.CreateEphemeralRoomIds(roomList...)
+	return ret
+}
+
+func CreateInstancesFromZone(zoneName string) map[int]int {
+	ret, _ := rooms.CreateEphemeralZone(zoneName)
+	return ret
+}
+
 func GetRoom(roomId int) *ScriptRoom {
 	if room := rooms.LoadRoom(roomId); room != nil {
 		return &ScriptRoom{roomId, room}

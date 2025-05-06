@@ -2,7 +2,9 @@ package hooks
 
 import (
 	"fmt"
+	"strconv"
 
+	"github.com/GoMudEngine/GoMud/internal/configs"
 	"github.com/GoMudEngine/GoMud/internal/connections"
 	"github.com/GoMudEngine/GoMud/internal/events"
 	"github.com/GoMudEngine/GoMud/internal/mobs"
@@ -64,6 +66,18 @@ func HandleLeave(e events.Event) events.ListenerReturn {
 		mudlog.Error("Log Out Error", "connectionId", connId, "error", err)
 	}
 	connections.Remove(connId)
+
+	specialRooms := configs.GetSpecialRoomsConfig()
+	testRoomId := rooms.GetOriginalRoom(user.Character.RoomId)
+	for i := range specialRooms.TutorialRooms {
+		roomId, _ := strconv.Atoi(specialRooms.TutorialRooms[i])
+		if roomId == testRoomId {
+			user.Character.RoomId = -1
+			break
+		}
+	}
+
+	users.SaveUser(*user)
 
 	return events.Continue
 }

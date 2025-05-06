@@ -1,6 +1,8 @@
 # Room Specific Functions
 
 - [Room Specific Functions](#room-specific-functions)
+  - [CreateInstancesFromRoomIds(RoomIds \[int, int...\]) Object ](#createinstancesfromroomidsroomids-int-int-object-)
+  - [CreateInstancesFromZone(zoneName string) Object ](#createinstancesfromzonezonename-string-object-)
   - [GetRoom(roomId int) RoomObject ](#getroomroomid-int-roomobject-)
   - [RoomObject.RoomId() int](#roomobjectroomid-int)
   - [RoomObject.SendText(msg string\[, excludeUserIds int\])](#roomobjectsendtextmsg-string-excludeuserids-int)
@@ -26,6 +28,22 @@
   - [RoomObject.RemoveMutator(mutName string)](#roomobjectremovemutatormutname-string)
   - [RoomObject.RepeatSpawnItem(itemId int, roundInterval int \[, containerName\]](#roomobjectrepeatspawnitemitemid-int-roundinterval-int--containername)
   - [RoomObject.SetLocked(exitName string, lockIt bool)](#roomobjectsetlockedexitname-string-lockit-bool)
+
+## [CreateInstancesFromRoomIds(RoomIds [int, int...]) Object ](/internal/scripting/room_func.go)
+Returns an Object with key/value pairs of `ProvidedRoomId`=>`NewRoomId`
+Creates ephemeral instances of the RoomId's provided.
+
+|  Argument | Explanation |
+| --- | --- |
+| RoomIds | an array of integers containing RoomId's you want instanced |
+
+## [CreateInstancesFromZone(zoneName string) Object ](/internal/scripting/room_func.go)
+Returns an Object with key/value pairs of `ProvidedRoomId`=>`NewRoomId`
+Creates ephemeral instances of the  RoomIds of the zone provided.
+
+|  Argument | Explanation |
+| --- | --- |
+| zoneName | The name of the zone to create instances from the zone rooms |
 
 ## [GetRoom(roomId int) RoomObject ](/internal/scripting/room_func.go)
 Retrieves a RoomObject for a given roomId.
