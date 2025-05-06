@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
@@ -283,9 +284,24 @@ func (g *GMCPModule) HandleIAC(connectionId uint64, iacCmd []byte) bool {
 				gmcpData.Client.Version = decoded.Version
 
 				if strings.EqualFold(decoded.Client, `mudlet`) {
-
 					gmcpData.Client.IsMudlet = true
 
+					// Trigger the Mudlet detected event
+					userId := 0
+					// Try to find the user ID associated with this connection
+					for _, user := range users.GetAllActiveUsers() {
+						if user.ConnectionId() == connectionId {
+							userId = user.UserId
+							break
+						}
+					}
+
+					if userId > 0 {
+						events.AddToQueue(GMCPMudletDetected{
+							ConnectionId: connectionId,
+							UserId:       userId,
+						})
+					}
 				}
 
 				g.cache.Add(connectionId, gmcpData)
@@ -398,7 +414,7 @@ func (g *GMCPModule) dispatchGMCP(e events.Event) events.ListenerReturn {
 
 		// DEBUG ONLY
 		// TODO: REMOVE
-		if gmcp.UserId == 1 {
+		if gmcp.UserId == 1 && os.Getenv("CONSOLE_GMCP_OUTPUT") == "1" {
 			var prettyJSON bytes.Buffer
 			json.Indent(&prettyJSON, v, "", "\t")
 			fmt.Print(gmcp.Module + ` `)
@@ -415,7 +431,7 @@ func (g *GMCPModule) dispatchGMCP(e events.Event) events.ListenerReturn {
 
 		// DEBUG ONLY
 		// TODO: REMOVE
-		if gmcp.UserId == 1 {
+		if gmcp.UserId == 1 && os.Getenv("CONSOLE_GMCP_OUTPUT") == "1" {
 			var prettyJSON bytes.Buffer
 			json.Indent(&prettyJSON, []byte(v), "", "\t")
 			fmt.Print(gmcp.Module + ` `)
@@ -437,7 +453,7 @@ func (g *GMCPModule) dispatchGMCP(e events.Event) events.ListenerReturn {
 
 		// DEBUG ONLY
 		// TODO: REMOVE
-		if gmcp.UserId == 1 {
+		if gmcp.UserId == 1 && os.Getenv("CONSOLE_GMCP_OUTPUT") == "1" {
 			var prettyJSON bytes.Buffer
 			json.Indent(&prettyJSON, payload, "", "\t")
 			fmt.Print(gmcp.Module + ` `)

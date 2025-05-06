@@ -59,6 +59,8 @@ Server:
   - print
   - inbox check
   - print
+  - mudletmap
+  - checkclient
   # - Motd -
   #   Message of the day. This is displayed when the motd command is run.
   Motd: '{{ t "Motd" }}'
