@@ -402,6 +402,12 @@ func (a ScriptActor) UpdateItem(itm ScriptItem) {
 	a.userRecord.Character.UpdateItem(itm.originalItem, *itm.itemRecord)
 }
 
+func (a ScriptActor) AddEventLog(category string, message string) {
+	if a.userRecord != nil {
+		a.userRecord.EventLog.Add(category, message)
+	}
+}
+
 func (a ScriptActor) GiveItem(itm any) {
 
 	var sItem *ScriptItem
@@ -571,6 +577,13 @@ func (a ScriptActor) GetRaceKills(race string) int {
 	}
 
 	return raceKills[race]
+}
+
+func (a ScriptActor) SetHealth(amt int) {
+	a.characterRecord.Health = amt
+	if a.characterRecord.Health > a.characterRecord.HealthMax.Value {
+		a.characterRecord.Health = a.characterRecord.HealthMax.Value
+	}
 }
 
 func (a ScriptActor) GetHealth() int {

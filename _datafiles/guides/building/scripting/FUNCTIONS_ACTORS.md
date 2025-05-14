@@ -54,6 +54,7 @@ ActorObjects are the basic object that represents Users and NPCs
   - [ActorObject.GetMobKills(mobId int) int](#actorobjectgetmobkillsmobid-int-int)
   - [ActorObject.GetRaceKills(raceName string) int](#actorobjectgetracekillsracename-string-int)
   - [ActorObject.GetHealth() int](#actorobjectgethealth-int)
+  - [ActorObject.SetHealth(amt int)](#actorobjectsethealthamt-int)
   - [ActorObject.GetHealthMax() int](#actorobjectgethealthmax-int)
   - [ActorObject.GetHealthPct() float](#actorobjectgethealthpct-float)
   - [ActorObject.GetMana() int](#actorobjectgetmana-int)
@@ -87,6 +88,7 @@ ActorObjects are the basic object that represents Users and NPCs
   - [ActorObject.TimerSet(name string, period string)](#actorobjecttimersetname-string-period-string)
   - [ActorObject.TimerExpired(name string) bool](#actorobjecttimerexpiredname-string-bool)
   - [ActorObject.TimerExists(name string) bool](#actorobjecttimerexistsname-string-bool)
+  - [ActorObject.AddEventLog(category string, message string)](#actorobjectaddeventlogcategory-string-message-string)
 
 
 
@@ -439,6 +441,14 @@ Returns the number of times the actor has killed a certain race of mob
 ## [ActorObject.GetHealth() int](/internal/scripting/actor_func.go)
 Returns current actor health
 
+## [ActorObject.SetHealth(amt int)](/internal/scripting/actor_func.go)
+Sets actor health to a specific amount. If this exceeds their maximum health, sets to their maximum health.
+
+|  Argument | Explanation |
+| --- | --- |
+| amt | number of hitpoints to set them to |
+
+
 ## [ActorObject.GetHealthMax() int](/internal/scripting/actor_func.go)
 Returns current actor max health
 
@@ -586,3 +596,10 @@ Returns true if the specified timer has expired or doesn't exist.
 Returns true if the specified timer exists. 
 Set timers always exist until they are checked for expiration with `TimerExpired(name string)`
 
+## [ActorObject.AddEventLog(category string, message string)](/internal/scripting/actor_func.go)
+Adds a line to the users Event Log (`history`)
+
+|  Argument | Explanation |
+| --- | --- |
+| category | A short single word category  |
+| message | A single line describing the event |

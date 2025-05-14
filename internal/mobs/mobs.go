@@ -75,9 +75,10 @@ type Mob struct {
 	QuestFlags      []string `yaml:"questflags,omitempty,flow"` // What quest flags are set on this mob?
 	BuffIds         []int    `yaml:"buffids,omitempty"`         // Buff Id's this mob always has upon spawn
 	tempDataStore   map[string]any
-	conversationId  int       // Identifier of conversation currently involved in.
-	Path            PathQueue `yaml:"-"` // a pre-calculated path the mob is following.
-	lastCommandTurn uint64    // The last turn a command was scheduled for
+	conversationId  int              // Identifier of conversation currently involved in.
+	Path            PathQueue        `yaml:"-"` // a pre-calculated path the mob is following.
+	lastCommandTurn uint64           // The last turn a command was scheduled for
+	playersAttacked map[int]struct{} // all players this mob has attacked at some point
 }
 
 func MobInstanceExists(instanceId int) bool {
@@ -102,6 +103,7 @@ func GetAllMobNames() []string {
 func TrackRecentDeath(instanceId int) {
 	recentlyDied[instanceId] = int(util.GetRoundCount())
 }
+
 func RecentlyDied(instanceId int) bool {
 
 	if len(recentlyDied) > 30 {
@@ -256,6 +258,21 @@ func (m *Mob) AddBuff(buffId int, source string) {
 		Source:        source,
 	})
 
+}
+
+func (m *Mob) PlayerAttacked(userId int) {
+	if m.playersAttacked == nil {
+		m.playersAttacked = map[int]struct{}{}
+	}
+	m.playersAttacked[userId] = struct{}{}
+}
+
+func (m *Mob) HasAttackedPlayer(userId int) bool {
+	if m.playersAttacked == nil {
+		return false
+	}
+	_, ok := m.playersAttacked[userId]
+	return ok
 }
 
 func (m *Mob) InConversation() bool {
@@ -570,7 +587,7 @@ func (m *Mob) GetIdleCommand() string {
 	return ``
 }
 
-func (r *Mob) IsAlly(m *Mob) bool {
+func (r *Mob) ConsidersAnAlly(m *Mob) bool {
 
 	if m.MobId == r.MobId {
 		return true // Auto ally with own kind
@@ -581,10 +598,12 @@ func (r *Mob) IsAlly(m *Mob) bool {
 	}
 
 	// If they both belong to factions/groups, check for matches
-	if len(m.Groups) > 0 && len(r.Groups) > 0 {
+	// Could conver tthis to a look up map.
+	// Only a couple entries likely, so maybe not worth it.
+	if len(r.Groups) > 0 {
 		// Look for a group match
-		for _, testGroup := range m.Groups {
-			for _, targetGroup := range r.Groups {
+		for _, targetGroup := range r.Groups {
+			for _, testGroup := range m.Groups {
 				if testGroup == targetGroup {
 					return true
 				}
@@ -608,6 +627,7 @@ func (r *Mob) Validate() error {
 	}
 
 	r.Character.Validate()
+
 	return nil
 }
 
