@@ -15,6 +15,7 @@ import (
 	"github.com/GoMudEngine/GoMud/internal/exit"
 	"github.com/GoMudEngine/GoMud/internal/gametime"
 	"github.com/GoMudEngine/GoMud/internal/items"
+	"github.com/GoMudEngine/GoMud/internal/keywords"
 	"github.com/GoMudEngine/GoMud/internal/mobs"
 	"github.com/GoMudEngine/GoMud/internal/mutators"
 	"github.com/GoMudEngine/GoMud/internal/users"
@@ -29,6 +30,7 @@ var (
 		"*": defaultMapSymbol,
 		//"•": "*",
 	}
+
 )
 
 type FindFlag uint16
@@ -1716,6 +1718,29 @@ func (r *Room) FindNoun(noun string) (foundNoun string, nounDescription string) 
 
 func (r *Room) FindExitByName(exitNameSearch string) (exitName string, exitRoomId int) {
 
+	// Check for direction aliases from keywords.yaml first
+	fullDirection := keywords.TryDirectionAlias(exitNameSearch)
+	if fullDirection != exitNameSearch {
+		// A direction alias was found, check if this exact direction exists
+		if exitInfo, ok := r.Exits[fullDirection]; ok {
+			return fullDirection, exitInfo.RoomId
+		}
+		// Check temporary exits
+		if tempExit, ok := r.ExitsTemp[fullDirection]; ok {
+			return fullDirection, tempExit.RoomId
+		}
+		// Check mutator exits
+		for mut := range r.ActiveMutators {
+			spec := mut.GetSpec()
+			if exitInfo, ok := spec.Exits[fullDirection]; ok {
+				return fullDirection, exitInfo.RoomId
+			}
+		}
+		// Direction alias used but exit doesn't exist
+		return ``, 0
+	}
+
+	// Build list of all exits for fuzzy matching
 	exitNames := []string{}
 	for exitName, _ := range r.Exits {
 		exitNames = append(exitNames, exitName)
@@ -1734,21 +1759,10 @@ func (r *Room) FindExitByName(exitNameSearch string) (exitName string, exitRoomI
 		}
 	}
 
+	// Use fuzzy matching for all exits
 	exactMatch, closeMatch := util.FindMatchIn(exitNameSearch, exitNames...)
 
 	if len(exactMatch) == 0 {
-
-		exactMatchesRequired := []string{
-			`southeast`, `southwest`,
-			`northeast`, `northwest`,
-		}
-		// Do not allow prefix matches on southwest etc
-		for _, requiredCloseMatchTerm := range exactMatchesRequired {
-			if requiredCloseMatchTerm == closeMatch {
-				return "", 0
-			}
-		}
-
 		portalStr := `portal`
 		if strings.HasPrefix(closeMatch, exitNameSearch) {
 			exactMatch = closeMatch
