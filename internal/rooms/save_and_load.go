@@ -353,6 +353,19 @@ func SaveAllRooms() error {
 	return nil
 }
 
+// Overwrite file and memory for zoneconfig
+func SaveZoneConfig(zoneConfig *ZoneConfig) error {
+
+	zoneFolder := util.FilePath(configs.GetFilePathsConfig().DataFiles.String(), "/", "rooms")
+	if err := fileloader.SaveFlatFile(zoneFolder, zoneConfig); err != nil {
+		return err
+	}
+
+	roomManager.zones[zoneConfig.Name] = zoneConfig
+
+	return nil
+}
+
 // Goes through all of the rooms and caches key information
 func loadAllRoomZones() error {
 	start := time.Now()
@@ -364,7 +377,21 @@ func loadAllRoomZones() error {
 		}
 	}()
 
-	loadedRooms, err := fileloader.LoadAllFlatFiles[int, *Room](configs.GetFilePathsConfig().DataFiles.String() + `/rooms`)
+	loadedZones, err := fileloader.LoadAllFlatFiles[string, *ZoneConfig](configs.GetFilePathsConfig().DataFiles.String()+`/rooms`, "zone-config.yaml")
+	if err != nil {
+		return err
+	}
+
+	for zoneName, zoneConfig := range loadedZones {
+		roomManager.zones[zoneName] = zoneConfig
+
+		folderPath := util.FilePath(configs.GetFilePathsConfig().DataFiles.String(), `/rooms.instances/`, ZoneNameSanitize(zoneConfig.Name))
+		if _, err := os.Stat(folderPath); os.IsNotExist(err) {
+			os.MkdirAll(folderPath, 0755)
+		}
+	}
+
+	loadedRooms, err := fileloader.LoadAllFlatFiles[int, *Room](configs.GetFilePathsConfig().DataFiles.String()+`/rooms`, "[0-9]*.yaml")
 	if err != nil {
 		return err
 	}
@@ -372,6 +399,28 @@ func loadAllRoomZones() error {
 	roomsWithoutEntrances := map[int]string{}
 
 	for _, loadedRoom := range loadedRooms {
+
+		//
+		// This code migrates old format data to the new format (separate zone file)
+		//
+		if loadedRoom.ZoneConfig != nil {
+			if loadedRoom.ZoneConfig.RoomId == loadedRoom.RoomId {
+				if _, ok := roomManager.zones[loadedRoom.Zone]; !ok {
+					newZone := NewZoneConfig(loadedRoom.Zone)
+					newZone.DefaultBiome = loadedRoom.Biome
+					newZone.IdleMessages = loadedRoom.ZoneConfig.IdleMessages
+					newZone.MusicFile = loadedRoom.ZoneConfig.MusicFile
+					newZone.MobAutoScale = loadedRoom.ZoneConfig.MobAutoScale
+					newZone.Mutators = loadedRoom.ZoneConfig.Mutators
+					newZone.RoomId = loadedRoom.ZoneConfig.RoomId
+					if err := SaveZoneConfig(newZone); err != nil {
+						return err
+					}
+					loadedRoom.ZoneConfig = nil // if successfully saved, blank out the ZoneConfig for the room
+					SaveRoomTemplate(*loadedRoom)
+				}
+			}
+		}
 
 		// configs.GetConfig().DeathRecoveryRoom is the death/shadow realm and gets a pass
 		if loadedRoom.RoomId == int(configs.GetSpecialRoomsConfig().DeathRecoveryRoom) {
@@ -411,34 +460,12 @@ func loadAllRoomZones() error {
 
 		// Update the zone info cache
 		if _, ok := roomManager.zones[loadedRoom.Zone]; !ok {
-			roomManager.zones[loadedRoom.Zone] = ZoneInfo{
-				RootRoomId: 0,
-				RoomIds:    make(map[int]struct{}),
-			}
-
-			folderPath := util.FilePath(configs.GetFilePathsConfig().DataFiles.String(), `/rooms.instances/`, ZoneNameSanitize(loadedRoom.Zone))
-			if _, err := os.Stat(folderPath); os.IsNotExist(err) {
-				os.MkdirAll(folderPath, 0755)
-			}
+			// Form one?
+			return fmt.Errorf("No zone-config.yaml was loaded for roomId: %d zone: %s", loadedRoom.RoomId, loadedRoom.Zone)
 		}
-
-		// Update the zone info
-		zoneInfo := roomManager.zones[loadedRoom.Zone]
-		zoneInfo.RoomIds[loadedRoom.RoomId] = struct{}{}
-
-		if loadedRoom.ZoneConfig.RoomId == loadedRoom.RoomId {
-			zoneInfo.RootRoomId = loadedRoom.RoomId
-			zoneInfo.DefaultBiome = loadedRoom.Biome
-
-			if len(loadedRoom.ZoneConfig.Mutators) > 0 {
-				zoneInfo.HasZoneMutators = true
-			}
-		}
-
-		roomManager.zones[loadedRoom.Zone] = zoneInfo
 	}
 
-	mudlog.Info("rooms.loadAllRoomZones()", "loadedCount", len(loadedRooms), "Time Taken", time.Since(start))
+	mudlog.Info("rooms.loadAllRoomZones()", "zoneCount", len(loadedZones), "loadedCount", len(loadedRooms), "Time Taken", time.Since(start))
 
 	return nil
 }
