@@ -943,6 +943,8 @@ func loadAllDataFiles(isReload bool) {
 	// Force clear all cached VM's
 	scripting.PruneVMs(true)
 
+	// Load biomes before rooms since rooms reference biomes
+	rooms.LoadBiomeDataFiles()
 	spells.LoadSpellFiles()
 	rooms.LoadDataFiles()
 	buffs.LoadDataFiles() // Load buffs before items for cost calculation reasons

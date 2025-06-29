@@ -2198,12 +2198,6 @@ func (r *Room) Validate() error {
 		}
 	}
 
-	// Validate the biome.
-	if r.Biome != `` {
-		if _, found := GetBiome(r.Biome); !found {
-			return fmt.Errorf("invalid biome: %s", r.Biome)
-		}
-	}
 
 	// Make sure all items are validated (and have uids)
 	for i := range r.Items {
@@ -2240,7 +2234,7 @@ func (r *Room) Filepath() string {
 	return util.FilePath(zone, `/`, r.Filename())
 }
 
-func (r *Room) GetBiome() BiomeInfo {
+func (r *Room) GetBiome() *BiomeInfo {
 
 	if r.Biome == `` {
 		if r.Zone != `` {
@@ -2248,7 +2242,11 @@ func (r *Room) GetBiome() BiomeInfo {
 		}
 	}
 
-	bInfo, _ := GetBiome(r.Biome)
+	bInfo, ok := GetBiome(r.Biome)
+	if !ok {
+		// If biome not found, try to get the default biome
+		bInfo, _ = GetBiome(``)
+	}
 
 	return bInfo
 }
