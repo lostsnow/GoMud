@@ -12,6 +12,7 @@ import (
 	"github.com/GoMudEngine/GoMud/internal/mudlog"
 	"github.com/GoMudEngine/GoMud/internal/pets"
 	"github.com/GoMudEngine/GoMud/internal/rooms"
+	"github.com/GoMudEngine/GoMud/internal/scripting"
 	"github.com/GoMudEngine/GoMud/internal/skills"
 	"github.com/GoMudEngine/GoMud/internal/users"
 	"github.com/GoMudEngine/GoMud/internal/util"
@@ -41,7 +42,7 @@ func Buy(rest string, user *users.UserRecord, room *rooms.Room, flags events.Eve
 
 			// If nobody found when clearly specified somebody, send an error and abort
 			if targetUserId == 0 && targetMobInstanceId == 0 {
-				user.SendText("Visit a merchant to buy objects.")
+				user.SendText("Visit a merchant to purchase objects or services.")
 				return true, nil
 			}
 
@@ -56,6 +57,11 @@ func Buy(rest string, user *users.UserRecord, room *rooms.Room, flags events.Eve
 
 	merchantPlayers := room.GetPlayers(rooms.FindMerchant)
 	merchantMobs := room.GetMobs(rooms.FindMerchant)
+
+	if len(merchantPlayers) == 0 && len(merchantMobs) == 0 {
+		user.SendText("Visit a merchant to purchase objects or services.")
+		return true, nil
+	}
 
 	for _, uid := range merchantPlayers {
 		if targetUserId > 0 && uid != targetUserId {
@@ -239,7 +245,7 @@ func tryPurchase(request string, user *users.UserRecord, room *rooms.Room, shopM
 	matchedShopItem := nameToShopItem[match]
 	if !matchedShopItem.Available() {
 		if shopMob != nil {
-			shopMob.Command(`say I don't have that item for sale right now.`)
+			shopMob.Command(`say I don't have that for sale right now.`)
 		} else if shopUser != nil {
 			user.SendText(fmt.Sprintf(`<ansi fg="username">%s</ansi> doesn't have that for sale right now.`, shopUser.Character.Name))
 		}
@@ -349,7 +355,7 @@ func tryPurchase(request string, user *users.UserRecord, room *rooms.Room, shopM
 	if matchedShopItem.ItemId > 0 {
 		// Give them the item
 		newItm := items.New(matchedShopItem.ItemId)
-		user.Character.StoreItem(newItm)
+
 		user.PlaySound(`purchase`, `other`)
 
 		events.AddToQueue(events.ItemOwnership{
@@ -363,10 +369,10 @@ func tryPurchase(request string, user *users.UserRecord, room *rooms.Room, shopM
 			user.EventLog.Add(`shop`, fmt.Sprintf(`Purchased a <ansi fg="itemname">%s</ansi> from <ansi fg="mobname">%s</ansi> for %s`, newItm.DisplayName(), shopMob.Character.Name, tradeInString))
 
 			user.SendText(
-				fmt.Sprintf(`You buy a <ansi fg="itemname">%s</ansi> from <ansi fg="mobname">%s</ansi> for %s.`, newItm.DisplayName(), shopMob.Character.Name, tradeInString),
+				fmt.Sprintf(`You purchase the <ansi fg="itemname">%s</ansi> from <ansi fg="mobname">%s</ansi> for %s.`, newItm.DisplayName(), shopMob.Character.Name, tradeInString),
 			)
 			room.SendText(
-				fmt.Sprintf(`<ansi fg="username">%s</ansi> buys a <ansi fg="itemname">%s</ansi> from <ansi fg="mobname">%s</ansi>.`, user.Character.Name, newItm.DisplayName(), shopMob.Character.Name),
+				fmt.Sprintf(`<ansi fg="username">%s</ansi> purchases the <ansi fg="itemname">%s</ansi> from <ansi fg="mobname">%s</ansi>.`, user.Character.Name, newItm.DisplayName(), shopMob.Character.Name),
 				user.UserId,
 			)
 
@@ -375,15 +381,23 @@ func tryPurchase(request string, user *users.UserRecord, room *rooms.Room, shopM
 			user.EventLog.Add(`shop`, fmt.Sprintf(`Purchased a <ansi fg="itemname">%s</ansi> from <ansi fg="username">%s</ansi> for %s.`, newItm.DisplayName(), shopUser.Character.Name, tradeInString))
 
 			user.SendText(
-				fmt.Sprintf(`You buy a <ansi fg="itemname">%s</ansi> from <ansi fg="username">%s</ansi> for %s.`, newItm.DisplayName(), shopUser.Character.Name, tradeInString),
+				fmt.Sprintf(`You purchase the <ansi fg="itemname">%s</ansi> from <ansi fg="username">%s</ansi> for %s.`, newItm.DisplayName(), shopUser.Character.Name, tradeInString),
 			)
 
 			shopUser.SendText(fmt.Sprintf(`<ansi fg="username">%s</ansi> purchased the <ansi fg="itemname">%s</ansi> you were selling for %s.`, user.Character.Name, newItm.DisplayName(), tradeInString))
 
 			room.SendText(
-				fmt.Sprintf(`<ansi fg="username">%s</ansi> buys a <ansi fg="itemname">%s</ansi> from <ansi fg="mobname">%s</ansi>.`, user.Character.Name, newItm.DisplayName(), shopUser.Character.Name),
+				fmt.Sprintf(`<ansi fg="username">%s</ansi> purchases the <ansi fg="itemname">%s</ansi> from <ansi fg="mobname">%s</ansi>.`, user.Character.Name, newItm.DisplayName(), shopUser.Character.Name),
 				user.UserId, shopUser.UserId)
 		}
+
+		if keepItem, err := scripting.TryItemScriptEvent(`onPurchase`, newItm, user.UserId); err == nil {
+			if !keepItem { // For this event, handled represents whether to reject the move.
+				return true
+			}
+		}
+
+		user.Character.StoreItem(newItm)
 
 		return true
 	}
